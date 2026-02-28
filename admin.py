@@ -399,8 +399,17 @@ with aba2:
 
             with cd:
                 if st.button("🗑️ Excluir", key=f"excluir_{c['id']}"):
+                    # Registra estorno para subtrair do faturamento
+                    sb_post("pagamentos", {
+                        "cliente_id": c['id'],
+                        "cliente_nome": c['nome'],
+                        "plano": c.get('plano',''),
+                        "valor": -float(c.get('valor_plano', 0)),
+                        "status": "cancelado",
+                        "referencia": f"Exclusão do cliente — {date.today()}"
+                    })
                     sb_delete("clientes", f"id=eq.{c['id']}")
-                    st.error("Cliente excluído.")
+                    st.error(f"Cliente {c['nome']} excluído e faturamento atualizado.")
                     time.sleep(1); st.rerun()
 
 # ══════════════════════════════════════════════════════
