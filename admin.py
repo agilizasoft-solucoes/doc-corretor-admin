@@ -213,16 +213,18 @@ st.divider()
 import streamlit.components.v1 as components
 components.html("<script>setTimeout(function(){window.location.reload();}, 30000);</script>", height=0)
 
-# ── Cache de dados (recarrega a cada acesso) ──
-def carregar_dados():
-    return {
-        "clientes":   sb_get("clientes",   "select=*"),
-        "pagamentos": sb_get("pagamentos", "select=*"),
-        "usos":       sb_get("usos",       "select=*"),
-        "acessos":    sb_get("acessos",    "select=*"),
-    }
+# ── Dados sempre frescos do banco ──
+clientes_db   = sb_get("clientes",   "select=*")
+pagamentos_db = sb_get("pagamentos", "select=*")
+usos_db       = sb_get("usos",       "select=*")
+acessos_db    = sb_get("acessos",    "select=*")
 
-dados_globais = carregar_dados()
+dados_globais = {
+    "clientes":   clientes_db,
+    "pagamentos": pagamentos_db,
+    "usos":       usos_db,
+    "acessos":    acessos_db,
+}
 
 # ══════════════════════════════════════════════════════
 # ABAS
@@ -258,12 +260,12 @@ with aba1:
     imobs       = sum(1 for c in clientes if c.get("tipo") == "imobiliaria")
     corretores  = sum(1 for c in clientes if c.get("tipo") == "corretor")
 
-    faturamento = sum(p.get("valor", 0) for p in pagamentos if p.get("status") == "pago")
-    pendente    = sum(p.get("valor", 0) for p in pagamentos if p.get("status") == "pendente")
+    faturamento = sum(float(p.get("valor", 0) or 0) for p in pagamentos if p.get("status") == "pago")
+    pendente    = sum(float(p.get("valor", 0) or 0) for p in pagamentos if p.get("status") == "pendente")
 
     # Este mês
     mes_atual = hoje.strftime("%Y-%m")
-    fat_mes   = sum(p.get("valor", 0) for p in pagamentos
+    fat_mes   = sum(float(p.get("valor", 0) or 0) for p in pagamentos
                     if p.get("status") == "pago" and (p.get("pago_em","") or "")[:7] == mes_atual)
     usos_mes  = sum(1 for u in usos if (u.get("usado_em","") or "")[:7] == mes_atual)
 
@@ -519,10 +521,10 @@ with aba4:
     hoje = date.today()
     mes_atual = hoje.strftime("%Y-%m")
 
-    fat_total  = sum(p.get("valor",0) for p in pagamentos if p.get("status")=="pago")
-    fat_mes    = sum(p.get("valor",0) for p in pagamentos if p.get("status")=="pago" and (p.get("pago_em","") or "")[:7]==mes_atual)
-    pendente   = sum(p.get("valor",0) for p in pagamentos if p.get("status")=="pendente")
-    cancelado  = sum(p.get("valor",0) for p in pagamentos if p.get("status")=="cancelado")
+    fat_total  = sum(float(p.get("valor",0) or 0) for p in pagamentos if p.get("status")=="pago")
+    fat_mes    = sum(float(p.get("valor",0) or 0) for p in pagamentos if p.get("status")=="pago" and (p.get("pago_em","") or "")[:7]==mes_atual)
+    pendente   = sum(float(p.get("valor",0) or 0) for p in pagamentos if p.get("status")=="pendente")
+    cancelado  = sum(float(p.get("valor",0) or 0) for p in pagamentos if p.get("status")=="cancelado")
 
     c1,c2,c3,c4 = st.columns(4)
     c1.metric("💰 Total Recebido",   f"R$ {fat_total:,.2f}")
@@ -535,7 +537,7 @@ with aba4:
     # Faturamento por plano
     st.markdown("**Receita por plano:**")
     for plano in ["mensal","semestral","anual"]:
-        val = sum(p.get("valor",0) for p in pagamentos if p.get("status")=="pago" and p.get("plano")==plano)
+        val = sum(float(p.get("valor",0) or 0) for p in pagamentos if p.get("status")=="pago" and p.get("plano")==plano)
         qtd = sum(1 for p in pagamentos if p.get("status")=="pago" and p.get("plano")==plano)
         if qtd:
             st.markdown(f"- **{plano.capitalize()}:** {qtd} pagamento(s) — R$ {val:,.2f}")
