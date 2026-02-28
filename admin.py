@@ -209,6 +209,21 @@ with col_sair:
 
 st.divider()
 
+# ── Auto-refresh a cada 30 segundos ──
+import streamlit.components.v1 as components
+components.html("<script>setTimeout(function(){window.location.reload();}, 30000);</script>", height=0)
+
+# ── Cache de dados (recarrega a cada acesso) ──
+def carregar_dados():
+    return {
+        "clientes":   sb_get("clientes",   "select=*"),
+        "pagamentos": sb_get("pagamentos", "select=*"),
+        "usos":       sb_get("usos",       "select=*"),
+        "acessos":    sb_get("acessos",    "select=*"),
+    }
+
+dados_globais = carregar_dados()
+
 # ══════════════════════════════════════════════════════
 # ABAS
 # ══════════════════════════════════════════════════════
@@ -228,10 +243,10 @@ aba1, aba2, aba3, aba4, aba5 = st.tabs([
 with aba1:
     st.subheader("📊 Visão Geral do Negócio")
 
-    clientes   = sb_get("clientes", "select=*")
-    pagamentos = sb_get("pagamentos", "select=*")
-    usos       = sb_get("usos", "select=*")
-    acessos    = sb_get("acessos", "select=*")
+    clientes   = dados_globais["clientes"]
+    pagamentos = dados_globais["pagamentos"]
+    usos       = dados_globais["usos"]
+    acessos    = dados_globais["acessos"]
 
     hoje = date.today()
 
@@ -282,7 +297,7 @@ with aba1:
 
     # Últimos acessos
     st.subheader("🕐 Últimos Acessos")
-    acs = sb_get("acessos", "select=*&limit=10")
+    acs = sorted(dados_globais["acessos"], key=lambda x: x.get("acessado_em",""), reverse=True)[:10]
     if acs:
         for a in acs[:10]:
             dt = (a.get("acessado_em","") or "")[:16].replace("T"," ")
@@ -297,7 +312,7 @@ with aba1:
 with aba2:
     st.subheader("👥 Gerenciar Clientes")
 
-    clientes = sb_get("clientes", "select=*")
+    clientes = dados_globais["clientes"]
     hoje = date.today()
 
     # Filtros
@@ -484,6 +499,8 @@ with aba3:
                     })
                     st.success(f"✅ Cliente **{nome}** cadastrado! Vencimento: {venc}")
                     st.info(f"🔑 Login: `{login}` | Senha: `{senha}`")
+                    time.sleep(2)
+                    st.rerun()
                 else:
                     msg = str(resp)
                     if "duplicate" in msg.lower():
@@ -498,7 +515,7 @@ with aba3:
 with aba4:
     st.subheader("💰 Faturamento e Pagamentos")
 
-    pagamentos = sb_get("pagamentos", "select=*")
+    pagamentos = dados_globais["pagamentos"]
     hoje = date.today()
     mes_atual = hoje.strftime("%Y-%m")
 
@@ -527,7 +544,7 @@ with aba4:
 
     # Adicionar pagamento manual
     with st.expander("➕ Registrar pagamento manual"):
-        clientes_lista = sb_get("clientes", "select=id,nome")
+        clientes_lista = dados_globais["clientes"]
         if clientes_lista:
             nomes_map = {c["nome"]: c["id"] for c in clientes_lista}
             cl_sel    = st.selectbox("Cliente", list(nomes_map.keys()))
@@ -561,8 +578,8 @@ with aba4:
 with aba5:
     st.subheader("📈 Métricas de Uso do Sistema")
 
-    usos    = sb_get("usos", "select=*")
-    acessos = sb_get("acessos", "select=*")
+    usos    = dados_globais["usos"]
+    acessos = dados_globais["acessos"]
     hoje    = date.today()
     mes_atual = hoje.strftime("%Y-%m")
 
@@ -596,7 +613,7 @@ with aba5:
 
     # Clientes que nunca usaram
     clientes_uso = {u.get("cliente_login") for u in usos}
-    clientes_todos = sb_get("clientes", "select=login,nome,ativo")
+    clientes_todos = dados_globais["clientes"]
     nunca_usaram = [c for c in clientes_todos if c.get("login") not in clientes_uso and c.get("ativo")]
     if nunca_usaram:
         st.markdown(f"**😴 Clientes ativos que nunca geraram um dossiê ({len(nunca_usaram)}):**")
