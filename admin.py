@@ -116,9 +116,16 @@ def marcar_token_usado(token_id):
 # LOGIN ADMIN + RECUPERAÇÃO DE SENHA
 # ══════════════════════════════════════════════════════
 
+SESSAO_ADMIN_TOKEN = "sessao_admin_ativa_2025"  # token fixo de sessão
+
 def check_admin():
-    params = st.query_params
+    params    = st.query_params
     token_url = params.get("token", "")
+    sessao    = params.get("s", "")
+
+    # ── Restaura sessão via query param após F5 ──
+    if sessao == SESSAO_ADMIN_TOKEN and not st.session_state.get("admin_ok"):
+        st.session_state["admin_ok"] = True
 
     # ── Fluxo de redefinição via token ──
     if token_url and not st.session_state.get("admin_ok"):
@@ -139,7 +146,6 @@ def check_admin():
                 elif nova1 != nova2:
                     st.error("As senhas não coincidem.")
                 else:
-                    # Salva nova senha no secrets (instrução ao admin)
                     marcar_token_usado(rec["id"])
                     st.success("✅ Token validado! Atualize a variável ADMIN_SENHA no código com:")
                     st.code(nova1)
@@ -160,6 +166,7 @@ def check_admin():
                 if st.button("Entrar", use_container_width=True, type="primary"):
                     if senha == ADMIN_SENHA:
                         st.session_state["admin_ok"] = True
+                        st.query_params["s"] = SESSAO_ADMIN_TOKEN
                         st.rerun()
                     else:
                         st.error("Senha incorreta.")
@@ -197,6 +204,7 @@ with col_sair:
     st.write("")
     if st.button("🚪 Sair", use_container_width=True):
         st.session_state["admin_ok"] = False
+        st.query_params.clear()
         st.rerun()
 
 st.divider()
