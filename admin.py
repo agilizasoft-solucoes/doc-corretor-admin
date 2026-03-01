@@ -14,6 +14,17 @@ import time
 
 st.set_page_config(page_title="Admin — DocCorretor IA", page_icon="🛡️", layout="wide")
 
+st.markdown("""
+<style>
+    #MainMenu { visibility: hidden !important; }
+    header[data-testid="stHeader"] { visibility: hidden !important; }
+    footer { visibility: hidden !important; }
+    .stDeployButton { display: none !important; }
+    [data-testid="stToolbar"] { display: none !important; }
+    [data-testid="stDecoration"] { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
+
 SUPABASE_URL  = "https://ryvgqesflxbtqbdhspdy.supabase.co"
 SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5dmdxZXNmbHhidHFiZGhzcGR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTIyMjMsImV4cCI6MjA4Nzg2ODIyM30.HhW3_bSQ8fZvY17XTwerhXdW7hF2uf3gKUSYm9ixkys"
 ADMIN_SENHA   = "admin@docorretor2025"   # ← troque pela sua senha master
