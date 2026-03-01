@@ -36,10 +36,21 @@ VALORES_PLANO = {"mensal": 97.0, "semestral": 497.0, "anual": 897.0}
 # SUPABASE HELPERS
 # ══════════════════════════════════════════════════════
 
+ORDEM_TABELA = {
+    "clientes":   "criado_em.desc",
+    "acessos":    "acessado_em.desc",
+    "usos":       "usado_em.desc",
+    "pagamentos": "pago_em.desc",
+    "tokens_recuperacao": "criado_em.desc",
+}
+
 def sb_get(tabela, filtro=""):
-    url = f"{SUPABASE_URL}/rest/v1/{tabela}?{filtro}&order=criado_em.desc"
+    ordem = ORDEM_TABELA.get(tabela, "criado_em.desc")
+    url = f"{SUPABASE_URL}/rest/v1/{tabela}?{filtro}&order={ordem}"
     r = requests.get(url, headers=HEADERS)
-    return r.json() if r.status_code == 200 else []
+    if r.status_code == 200:
+        return r.json()
+    return []
 
 def sb_post(tabela, dados):
     url = f"{SUPABASE_URL}/rest/v1/{tabela}"
