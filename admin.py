@@ -37,37 +37,32 @@ st.markdown("""
     button[title="Open settings"] { display: none !important; }
     button[title="Manage app"] { display: none !important; }
 </style>
-<script>
-    function hideStreamlitMenu() {
-        const selectors = [
-            'header[data-testid="stHeader"]',
-            '#MainMenu',
-            'footer',
-            '[data-testid="stToolbar"]',
-            '[data-testid="stDecoration"]',
-            '[data-testid="stStatusWidget"]',
-            '[data-testid="manage-app-button"]',
-            '.stDeployButton',
-            '[class*="viewerBadge"]',
-            '[class*="toolbarActions"]',
-        ];
-        selectors.forEach(sel => {
-            document.querySelectorAll(sel).forEach(el => {
-                el.style.display = 'none';
-                el.style.visibility = 'hidden';
-            });
-        });
-        ['Open settings','Manage app','View app in Streamlit Community Cloud','Fork'].forEach(title => {
-            document.querySelectorAll(`button[title="${title}"], a[title="${title}"]`).forEach(el => {
-                el.style.display = 'none';
-            });
-        });
-    }
-    hideStreamlitMenu();
-    const observer = new MutationObserver(hideStreamlitMenu);
-    observer.observe(document.body, { childList: true, subtree: true });
-</script>
 """, unsafe_allow_html=True)
+
+import streamlit.components.v1 as components
+components.html("""
+<script>
+    function hideMenu() {
+        const doc = window.parent.document;
+        ['header','#MainMenu','footer',
+         '[data-testid="stToolbar"]','[data-testid="stDecoration"]',
+         '[data-testid="stStatusWidget"]','[data-testid="manage-app-button"]',
+         '.stDeployButton'].forEach(s =>
+            doc.querySelectorAll(s).forEach(el => {
+                el.style.setProperty('display','none','important');
+                el.style.setProperty('visibility','hidden','important');
+            })
+        );
+        ['Open settings','Manage app','View app in Streamlit Community Cloud','Fork'].forEach(t =>
+            doc.querySelectorAll('button[title="'+t+'"],a[title="'+t+'"]').forEach(el =>
+                el.style.setProperty('display','none','important')
+            )
+        );
+    }
+    hideMenu();
+    new MutationObserver(hideMenu).observe(window.parent.document.body,{childList:true,subtree:true});
+</script>
+""", height=0)
 
 SUPABASE_URL  = "https://ryvgqesflxbtqbdhspdy.supabase.co"
 SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5dmdxZXNmbHhidHFiZGhzcGR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTIyMjMsImV4cCI6MjA4Nzg2ODIyM30.HhW3_bSQ8fZvY17XTwerhXdW7hF2uf3gKUSYm9ixkys"
@@ -276,7 +271,6 @@ with col_sair:
 st.divider()
 
 # ── Auto-refresh a cada 30 segundos ──
-import streamlit.components.v1 as components
 components.html("<script>setTimeout(function(){window.location.reload();}, 30000);</script>", height=0)
 
 # ── Dados sempre frescos do banco ──
