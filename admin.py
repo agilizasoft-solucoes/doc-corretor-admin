@@ -8,7 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import date, timedelta, datetime, timezone
 import time
 
-st.set_page_config(page_title="Admin — DocCorretor IA", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="Admin — ImobFlow", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -53,8 +53,13 @@ HEADERS = {
     "Content-Type": "application/json",
     "Prefer": "return=representation"
 }
+# Headers sem Prefer — usado no PATCH para evitar erro 406 no Supabase
+HEADERS_PATCH = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json",
+}
 
-# ── Planos: free = sem envio email | mensal/semestral/anual = PRO (com envio)
 PLANOS = {
     "free":      {"label": "🆓 Free — sem envio de email", "valor": 0.0,   "pro": False},
     "mensal":    {"label": "📅 Mensal — R$ 97,00",         "valor": 97.0,  "pro": True},
@@ -83,9 +88,10 @@ def sb_post(tabela, dados):
     return r.status_code in (200, 201), r.json()
 
 def sb_patch(tabela, filtro, dados):
+    """PATCH sem Prefer:return=representation — evita erro 406 no Supabase"""
     url = f"{SUPABASE_URL}/rest/v1/{tabela}?{filtro}"
-    r = requests.patch(url, headers=HEADERS, json=dados)
-    return r.status_code in (200, 204)
+    r = requests.patch(url, headers=HEADERS_PATCH, json=dados)
+    return r.status_code in (200, 201, 204)
 
 def sb_delete(tabela, filtro):
     url = f"{SUPABASE_URL}/rest/v1/{tabela}?{filtro}"
@@ -97,7 +103,7 @@ def calcular_vencimento(plano, inicio=None):
     if plano == "mensal":    return d + timedelta(days=30)
     if plano == "semestral": return d + timedelta(days=180)
     if plano == "anual":     return d + timedelta(days=365)
-    if plano == "free":      return d + timedelta(days=7)     # free expira em 7 dias
+    if plano == "free":      return date.today() + timedelta(days=7)
     return d + timedelta(days=30)
 
 def is_pro(plano):
@@ -147,7 +153,7 @@ def check_admin():
     if token_url and not st.session_state.get("admin_ok"):
         col1, col2, col3 = st.columns([1,1.2,1])
         with col2:
-            st.markdown("## 🛡️ DocCorretor IA"); st.markdown("#### Redefinir senha master"); st.divider()
+            st.markdown("## 🛡️ ImobFlow"); st.markdown("#### Redefinir senha master"); st.divider()
             rec = validar_token(token_url)
             if not rec or rec.get("tipo") != "admin":
                 st.error("❌ Link inválido ou expirado."); st.stop()
@@ -165,7 +171,7 @@ def check_admin():
     if not st.session_state.get("admin_ok", False):
         col1, col2, col3 = st.columns([1,1.2,1])
         with col2:
-            st.markdown("## 🛡️ DocCorretor IA"); st.markdown("#### Painel Administrador"); st.divider()
+            st.markdown("## 🛡️ ImobFlow"); st.markdown("#### Painel Administrador"); st.divider()
             tela = st.radio("", ["🔑 Entrar","🔓 Esqueci minha senha"], horizontal=True, label_visibility="collapsed")
             if tela == "🔑 Entrar":
                 senha = st.text_input("Senha master", type="password")
@@ -182,8 +188,8 @@ def check_admin():
                     try:
                         token = criar_token("admin", "master")
                         link  = f"{APP_URL_ADMIN}?token={token}"
-                        html  = f'<h2>DocCorretor IA</h2><p>Redefina sua senha:</p><a href="{link}" style="background:#1976d2;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">🔑 Redefinir Senha</a>'
-                        enviar_email_recuperacao(ADMIN_EMAIL, "DocCorretor IA — Recuperação Senha Master", html)
+                        html  = f'<h2>ImobFlow</h2><p>Redefina sua senha:</p><a href="{link}" style="background:#1976d2;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;">🔑 Redefinir Senha</a>'
+                        enviar_email_recuperacao(ADMIN_EMAIL, "ImobFlow — Recuperação Senha Master", html)
                         st.success("✅ Link enviado!")
                     except Exception as e:
                         st.error(f"❌ Erro: {e}")
@@ -193,7 +199,7 @@ check_admin()
 
 # ══ CABEÇALHO ══
 col_titulo, col_sair = st.columns([5,1])
-with col_titulo: st.markdown("# 🛡️ Painel Admin — DocCorretor IA")
+with col_titulo: st.markdown("# 🛡️ Painel Admin — ImobFlow")
 with col_sair:
     st.write("")
     if st.button("🚪 Sair", use_container_width=True):
@@ -316,31 +322,42 @@ with aba2:
             ca, cb, cc, cd = st.columns(4)
 
             with ca:
-                novo_plano = st.selectbox("Alterar plano", list(PLANOS.keys()),
-                    format_func=lambda x: PLANOS[x]["label"], key=f"rp_{c['id']}")
+                novo_plano = st.selectbox(
+                    "Alterar plano", list(PLANOS.keys()),
+                    format_func=lambda x: PLANOS[x]["label"],
+                    key=f"rp_{c['id']}"
+                )
                 if st.button("🔄 Atualizar plano", key=f"renovar_{c['id']}"):
                     nova_venc = calcular_vencimento(novo_plano)
-                    ok = sb_patch("clientes", f"id=eq.{c['id']}", {
+                    payload = {
                         "plano": novo_plano,
                         "valor_plano": VALORES_PLANO[novo_plano],
                         "data_vencimento": str(nova_venc),
                         "ativo": True,
-                        "atualizado_em": datetime.now().isoformat()
-                    })
-                    if ok and VALORES_PLANO[novo_plano] > 0:
-                        sb_post("pagamentos", {
-                            "cliente_id": c['id'], "cliente_nome": c['nome'],
-                            "plano": novo_plano, "valor": VALORES_PLANO[novo_plano],
-                            "status": "pago", "referencia": f"Plano {novo_plano} — {date.today()}"
-                        })
-                    if ok: st.success("✅ Plano atualizado!"); time.sleep(1); st.rerun()
+                    }
+                    ok = sb_patch("clientes", f"id=eq.{c['id']}", payload)
+                    if ok:
+                        # Registra pagamento só para planos pagos
+                        if VALORES_PLANO[novo_plano] > 0:
+                            sb_post("pagamentos", {
+                                "cliente_id": c['id'], "cliente_nome": c['nome'],
+                                "plano": novo_plano, "valor": VALORES_PLANO[novo_plano],
+                                "status": "pago", "referencia": f"Plano {novo_plano} — {date.today()}"
+                            })
+                        badge_novo = "🆓 Free" if novo_plano == "free" else "⭐ PRO"
+                        st.success(f"✅ Plano atualizado para {badge_novo} — {novo_plano.capitalize()}! Vence em: {nova_venc}")
+                        time.sleep(1); st.rerun()
+                    else:
+                        st.error("❌ Falha ao atualizar. Tente novamente.")
 
             with cb:
                 nova_senha = st.text_input("Nova senha", key=f"ns_{c['id']}", placeholder="deixe vazio para não alterar")
                 if st.button("🔑 Alterar senha", key=f"senha_{c['id']}"):
                     if nova_senha:
-                        sb_patch("clientes", f"id=eq.{c['id']}", {"senha": nova_senha})
-                        st.success("✅ Senha alterada!"); time.sleep(1); st.rerun()
+                        ok = sb_patch("clientes", f"id=eq.{c['id']}", {"senha": nova_senha})
+                        if ok: st.success("✅ Senha alterada!")
+                        else: st.error("❌ Falha ao alterar senha.")
+                        time.sleep(1); st.rerun()
 
             with cc:
                 if c.get("ativo"):
