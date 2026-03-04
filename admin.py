@@ -91,6 +91,8 @@ def sb_patch(tabela, filtro, dados):
     """PATCH sem Prefer:return=representation — evita erro 406 no Supabase"""
     url = f"{SUPABASE_URL}/rest/v1/{tabela}?{filtro}"
     r = requests.patch(url, headers=HEADERS_PATCH, json=dados)
+    if r.status_code not in (200, 201, 204):
+        st.error(f"❌ Erro HTTP {r.status_code}: {r.text}")
     return r.status_code in (200, 201, 204)
 
 def sb_delete(tabela, filtro):
@@ -335,6 +337,7 @@ with aba2:
                         "data_vencimento": str(nova_venc),
                         "ativo": True,
                     }
+                    st.write(f"🔍 Debug — id: {c['id']} | payload: {payload}")
                     ok = sb_patch("clientes", f"id=eq.{c['id']}", payload)
                     if ok:
                         # Registra pagamento só para planos pagos
